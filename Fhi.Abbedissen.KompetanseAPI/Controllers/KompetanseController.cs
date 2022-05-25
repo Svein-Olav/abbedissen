@@ -1,6 +1,8 @@
 using Fhi.Abbedissen.KompetanseAPI.Model;
-using Fhi.Abbedissen.KompetanseAPI.DTO;
+using Fhi.Abbedissen.Felles;
+using Fhi.Abbedissen.KompetanseAPI.Services;
 using Microsoft.AspNetCore.Mvc;
+using AutoMapper;
 
 namespace Fhi.Abbedissen.KompetanseAPI.Controllers
 {
@@ -8,47 +10,65 @@ namespace Fhi.Abbedissen.KompetanseAPI.Controllers
     [Route("[controller]")]
     public class KompetanseController : ControllerBase
     {
-        public List<Kompetanse> KompetanseDB { get; set; }
+        private readonly IKompetanseService kompetanseService;
+        private readonly IMapper mapper;
 
-        private readonly ILogger<KompetanseController> _logger;
-        Kompetanse kompetanse;
-
-        public KompetanseController(ILogger<KompetanseController> logger)
+        public KompetanseController(IKompetanseService service, IMapper mapper)
         {
-            _logger = logger;
-            kompetanse = new Kompetanse();
-            kompetanse.Id = 1;
-            kompetanse.Navn = "React";
-            kompetanse.Beskrivelse = "Klient tekn.";
-
-            KompetanseDB = new List<Kompetanse>();
+            this.kompetanseService = service;
+            this.mapper = mapper;
         }
 
-        [HttpGet(Name = "GetKompetanse")]
-        public KompetanseDTO GetKompetanse()
+        // GET: api/<KompetanseController>
+        [HttpGet]
+        public ActionResult<IEnumerable<KompetanseDTO>> GetKompetanse()
         {
-            return new KompetanseDTO(kompetanse);
+
+
+
+            var kompetanseListe = kompetanseService.HentKompetanse();
+
+            var kompetanseDTOer = mapper.Map<IEnumerable<KompetanseDTO>>(kompetanseListe);
+            
+            return Ok(kompetanseDTOer);
         }
 
-        [HttpPost(Name = "PostKompetanse")]
-        public dynamic PostKompetanse([FromBody] KompetanseDTO kompetanseDTO )
+        // GET api/<KompetanseController>/5
+        [HttpGet("{id}")]
+        public ActionResult<KompetanseDTO> Get(int id)
         {
-            int index = KompetanseDB.Count + 1;
+            var kompetanse = kompetanseService.HentKompetanse(id);
+            
+            if (kompetanse == null)
+                return NotFound();
 
-            var nyttElement = new Kompetanse()
+            var kompetanseDTO = new KompetanseDTO()
             {
-                Navn = kompetanseDTO.Navn,
-                Beskrivelse = kompetanseDTO.Beskrivelse,
-                Id = index,
-
+                Id = kompetanse.Id,
+                Navn = kompetanse.Navn, 
+                Beskrivelse = kompetanse.Beskrivelse
             };
 
-            KompetanseDB.Add(nyttElement);
-
-            return Ok();
+            return Ok(kompetanseDTO);
         }
 
+        // POST api/<KompetanseController>
+        [HttpPost]
+        public ActionResult Post([FromBody] KompetanseDTO kompetanseDTO)
+        {
+            if (kompetanseDTO == null)
+                return BadRequest();
 
+            var kompetanse = new Kompetanse()
+            {
+                Id = kompetanseDTO.Id,
+                Navn = kompetanseDTO.Navn,
+                Beskrivelse = kompetanseDTO.Beskrivelse                
+            };
 
+            kompetanseService.LeggTilKompetanse(kompetanse);
+            
+            return Ok();
+        }
     }
 }
